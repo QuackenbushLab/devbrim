@@ -1,0 +1,75 @@
+\documentclass{article}
+\title{BRIM Vignette}
+\author{John Platig}
+\begin{document}
+\maketitle
+\SweaveOpts{concordance=TRUE}
+\section{Description of the Algorithm}
+The code in \texttt{BRIM.R} is an implementation of the method described in Michael Barber's paper \emph{Modularity and community detection in bipartite networks}. A few general comments: 
+\begin{itemize}
+\item The methods are heuristic and can depend on initial assignments of the nodes to communities
+\item For this implementation of BRIM, I typically use a non-bipartite community detection method from the \emph{igraph} package to use as initial assignments of nodes to communities, which are then used BRIM.
+\item There are fancier community detection algorithms for bipartite networks now available that use message passing. I do not know of any that are implemented in \texttt{R}.
+\end{itemize}
+\subsection{Input/Output for BRIM}
+BRIM takes in 3 arguments:
+\begin{itemize}
+\item \texttt{X} - either an edge list segregated such that all nodes of one type ('reds') are in the first column and all nodes of the other type ('blues') in the second column. Alternatively, the upper right or lower left block of the full adjacency matrix.
+\item \texttt{edge.list} - a logical specifying whether or not \texttt{X} is an edge list
+\item \texttt{T0} - 2 by q matrix with initial community assignments. The first column contains node id's (the same used in the edge list) and the second column contains the numerical ID of the community.  of the `blue' nodes, corresponding to the nodes in the second column of the edgelist. If no input is provided, each blue node is placed in its own community. This is not recommended for large networks, as this will be very slow.
+\end{itemize}
+
+The code below should successfully run the bipartite community structure algorithm on two "toy" networks, one using an edgelist, and one using an adjacency matrix (the Southern Women's network).  Note that the file \texttt{SouthernWomens.txt} is required for the second network to run.
+
+<<>>=
+WORKING.DIR <- "~/Dropbox/BRIM_tutorial/"
+setwd(WORKING.DIR)
+source("BRIM_v6.1.R")
+#Vignette using an edgelist:
+# toy network
+r = c(1,1,1,2,2,2,3,3,3,4,4);
+#b = c(5,6,7,5,6,8,6,7,8,7,8);
+b = c(1,2,3,1,2,4,2,3,4,3,4);
+reds1 <- c("Alice","Sue","Janine","Mary")
+blues1 <- c("Bob","John","Ed","Hank")
+elist <- cbind(reds1[r],blues1[b])
+gtoy = graph.edgelist(elist,directed=FALSE)
+@
+Nodes in first community = {Alice, John, Bob, Sue}, nodes in second community = {Ed, Janine, Hank, Mary} based on the modularity maximization. Here's a picture:
+<<>>=
+set.graph.attribute(gtoy, "layout", layout.kamada.kawai(gtoy))
+V(gtoy)[c(reds1,blues1)]$color <- c(rep("red",4),rep("blue",4))
+plot(gtoy,vertex.label.dist=2)
+@
+You can feed BRIM either an edge list or the top right block of the adjacency matrix.
+<<>>=
+M = get.adjacency(gtoy)
+A2 <- M[reds1,blues1]
+QE = BRIM(A2)
+
+#Vignette using an adjacency matrix, specifically the Davis Southern 
+#Women's network
+@
+Now try BRIM on the Southern Women's network with all nodes initially in one community.
+<<>>=
+sw = read.table(paste0(WORKING.DIR,"SouthernWomens.txt"),header=FALSE)
+row.names(sw) <- paste0("r",1:nrow(sw))
+T_init <- cbind(1:min(dim(sw)),1)
+QSW = BRIM(sw,edge.list=FALSE,T0=T_init)
+#Should give Q = 0.32117
+@
+Now try BRIM on the Southern Women's network with all nodes initially in their own community.
+<<>>=
+sw = read.table(paste0(WORKING.DIR,"SouthernWomens.txt"),header=FALSE)
+row.names(sw) <- paste0("r",1:nrow(sw))
+T_init <- cbind(1:min(dim(sw)),1:min(dim(sw)))
+QSW = BRIM(sw,edge.list=FALSE,T0=T_init)
+#Should give Q = 0.34554
+@
+section{Things to fix}
+\begin{itemize}
+\item make it so T0 can handle non-numeric node ID's
+\item T -> Tmat
+\end{itemize}
+
+\end{document}
