@@ -1,5 +1,5 @@
-#Change from v6.1: Corrected error in the case where project=FALSE. T0 was not 
-#populated correctly in v6.1. 
+#Change from v6.1: Corrected error in the case where project=FALSE. T0 was not
+#populated correctly in v6.1.
 #Change from v6.1: vectorized index calls in lines 108 and 141
 #Changes from v6.0: New function max.component.bipartite, which takes a directed bipartite
 #network and returns the edgelist of giant connected component with the red and blue
@@ -17,32 +17,32 @@
 #This function is based on the bipartite modularity
 #as defined in "Modularity and community detection in bipartite networks"
 #by Michael J. Barber, Phys. Rev. E 76, 066102 (2007)
-#This function uses a slightly different implementation from the paper. It does not 
-#use the "adaptive BRIM" method for identifying the number of modules. Rather, 
-#simply continues to iterate until the difference in modularity between iterations 
+#This function uses a slightly different implementation from the paper. It does not
+#use the "adaptive BRIM" method for identifying the number of modules. Rather,
+#simply continues to iterate until the difference in modularity between iterations
 #is less that 10^-4. Starting from a random initial condition, this could take some time.
-#Use fast.brim for quicker runtimes, it intializes the blue node memberships by projecting 
-#the blue nodes into a unipartite "blue" network and then identify communities in that 
+#Use fast.brim for quicker runtimes, it intializes the blue node memberships by projecting
+#the blue nodes into a unipartite "blue" network and then identify communities in that
 #network using a standard unipartite community detection algorithm run on the projected network.
-#This was suggested by M. Barber, as the bisection method discussed in section D of his paper is 
+#This was suggested by M. Barber, as the bisection method discussed in section D of his paper is
 #rather tricky. This also speeds up run times.
 ###
 
 # Input two column vectors, reds and blues, which together form the
-# edgelist with node names 
+# edgelist with node names
 # edgelist should have one node type in each column #
 #### WARNING: This code requires nrows > ncols ####
 library(igraph)
 library(Matrix)
 library(nnet)
 
-#X is either the upper right or lower left quadrant of the 
+#X is either the upper right or lower left quadrant of the
 #block off-diagonal adjacency matrix representing a bipartite network as
 #described as A_tilde in the Barber paper or an edgelist.
 #T0 is the intial community assignment for each "blue" node, assuming there
 # are more blues than reds
-BRIM = function(X,edge.list=FALSE,T0=cbind(1:q,rep(1,q))){
-  
+BRIM = function(X,edge.list=FALSE,T0=cbind(1:q,rep(1,q)),weights=1){
+
   if(edge.list==TRUE){
     #Convert the edgelist to a sparseMatrix object
     esub <- X
@@ -58,23 +58,23 @@ BRIM = function(X,edge.list=FALSE,T0=cbind(1:q,rep(1,q))){
     blue.names <- levels(factor(esub[,2]))
     #ensure that nrows > ncols
     if(length(red.names) < length(blue.names)){
-      stop("Adjacency matrix dimension error: This code requires nrows > ncols") 
+      stop("Adjacency matrix dimension error: This code requires nrows > ncols")
       }
-  
+
     #Sparse matrix with the upper right block of the true Adjacency matrix. notices the dimension is reds x blues
-    A = sparseMatrix(i=reds,j=blues,x=1,dims=c(length(unique(reds)),length(unique(blues))),index1=TRUE);
+    A = sparseMatrix(i=reds,j=blues,x=weights,dims=c(length(unique(reds)),length(unique(blues))),index1=TRUE);
     rownames(A) <- red.names
     colnames(A) <- blue.names
   }
-  
-  
+
+
   if(edge.list==FALSE){
     #convert input matrix to sparse matrix, if it's not already
     A = Matrix(as.matrix(X),sparse=TRUE)
     red.names <- rownames(A)
     blue.names <- colnames(A)
     if(nrow(A) < ncol(A)){
-    stop("Adjacency matrix dimension error: This code requires nrows > ncols") 
+    stop("Adjacency matrix dimension error: This code requires nrows > ncols")
     }
   }
 
@@ -86,7 +86,7 @@ N = p+q
 ki = rowSums(A)
 dj = colSums(A)
 m = sum(ki) # m = sum(dj) too
-#initialize community assignments for red and blue nodes.  
+#initialize community assignments for red and blue nodes.
 Tmat <- T0
 R = cbind(1:p,rep(0,length=p))
 cs = sort(unique(Tmat[,2]))
@@ -109,7 +109,7 @@ for(i in 1:p){
     #bt[k] = sum(A[i,ind] - (ki[i]*dj[ind])/m)
     bt[k] = sum((A[i,] - (ki[i]*dj)/m)[ind])
     }
-    }  
+    }
   #note that which.max returns the FIRST max if more than one max
   h = which.max(bt)
     if(bt[h] < 0){
@@ -121,9 +121,9 @@ for(i in 1:p){
   if(bt[h] > 0){
   R[i,2] <- h # assign blue vertex i to comm k such that Q is maximized
   bt[-h] <- 0 # BTR is zero if i is not in k (see definition of Q)
-  
+
   }
-  
+
   #BT <- rbind(BT,bt)
 }
 #calculate R tilde, i.e., B_transpose * R
@@ -137,13 +137,13 @@ for(j in 1:q)
     #if node j is in community k, else BTR[j,k] = 0
     if(length(R[R[,2]==k,2]) != 0)
     {
-      
+
     ind <- R[,2] == k
     #btr[k] = sum(A[ind,j]-(ki[ind]*dj[j])/m)
     btr[k] = sum((A[,j]-(ki*dj[j])/m)[ind])
     }
   }
-  
+
   g = which.max(btr)
     #if there is no comm. assignment to increase modularity, make
     #a new community with that node only
@@ -152,38 +152,38 @@ for(j in 1:q)
       print("making new comm")
       Tmat[j,2] <- max(R[,2])+1
       btr <- rep(0,length(cs)+1)
-      cs <- c(cs,Tmat[j,2]) 
+      cs <- c(cs,Tmat[j,2])
       btr[length(cs)] <- sum(A[,j]-(ki*dj[j])/m)
       print(btr)
     }
-  
+
     if(btr[g] > 0)
     {
     Tmat[j,2] <- g
     btr[-g] <- 0
     }
-  
+
   #add another column to BTR if a new community is added
   if( !is.vector(BTR) && dim(BTR)[2] < length(btr)){BTR <- cbind(BTR,0) }
   BTR <- rbind(BTR,btr)
 }
- 
+
 Tt =  t(sparseMatrix(i=Tmat[,1],j=Tmat[,2],x=1,dims=c(q,length(cs)),index1=TRUE))
 Qthen <- Qnow
-Qcom <- diag(Tt %*% BTR)/m  
-Qnow <- sum(Qcom) 
+Qcom <- diag(Tt %*% BTR)/m
+Qnow <- sum(Qcom)
 Qhist = c(Qhist,Qnow)
- 
+
 print(paste("Q =",Qnow,sep=" "))
   if(round(Qnow,digits=4) != 0 && round(Qnow,digits=4) != 0){
   deltaQ = Qnow - Qthen
-  } 
+  }
 }
   qcom_temp <- cbind(Qcom,sort(unique(cs)))
   #drop empty communities
   qcom_out <- qcom_temp[qcom_temp[,1] > 0,]
   #if communities were dropped, relabel so community labels can function
-  #as row/column indices in the modularity matrix, B_ij. 
+  #as row/column indices in the modularity matrix, B_ij.
   if(nrow(qcom_out) < nrow(qcom_temp)){
     qcom_out[,2] <- as.integer(factor(qcom_out[,2]))
     R[,2] <- as.integer(factor(R[,2]))
@@ -196,17 +196,17 @@ print(paste("Q =",Qnow,sep=" "))
   return(out)
 }
 
-fast.brim <- function(elist,cs.method="LCS",project=TRUE)
+fast.brim <- function(elist,cs.method="LCS",project=TRUE,weights=1)
 {
   #make sure there's only one connected component
   g.component.test <- graph.data.frame(elist,directed=FALSE)
     if(!is.connected(g.component.test)){
       stop("More than one connected component detected,
               method requires only one connected component")
-    }  
+    }
   #cs.method is a string to specify which community detection method should be used
     G <- graph.data.frame(elist,directed=FALSE)
-    
+
     #Use unipartite comm. structure method for first pass
     #project network into gene space to obtain intial community assignment for genes
     if(project){
@@ -217,7 +217,7 @@ fast.brim <- function(elist,cs.method="LCS",project=TRUE)
         blues = as.integer(factor(elist[,2]))
         blue.names = levels(factor(elist[,2]))
         N = max(blues)
-        
+
         #Sparese matrix with the upper right block of the true Adjacency matrix. notices the dimension is reds x blues
         sM = sparseMatrix(i=reds,j=blues,x=1,dims=c(length(unique(reds)),length(unique(blues))),index1=T);
         #Project into gene space, projected adjacency matrix is has dim = genes x genes
@@ -232,21 +232,21 @@ fast.brim <- function(elist,cs.method="LCS",project=TRUE)
         #remove loops and multiple edges
         gcc.initialize = simplify(max.component(G1))
     }
-    
+
     #option to treat the bipartite network as if it is unipartite
     #for community initialization only
     if(!project)
       {
-        gcc.initialize <- G 
+        gcc.initialize <- G
         blue.names = levels(factor(elist[,2]))
         #blue.indx <- V(G)$name %in% blue.names
       }
-    
+
     if(cs.method=="LCS"){cs0 = multilevel.community(gcc.initialize)}
     if(cs.method=="LEC"){cs0 = leading.eigenvector.community(gcc.initialize)}
     if(cs.method=="FG"){cs0 = fastgreedy.community(gcc.initialize)}
     print(paste("modularity of projected graph",max(cs0$modularity)))
-    
+
     #initial condition for genes community membership
     if(project){ T0 <- data.frame(as.integer(factor(blue.names)),membership(cs0)) }
     if(!project)
@@ -255,8 +255,8 @@ fast.brim <- function(elist,cs.method="LCS",project=TRUE)
         T0 <- data.frame(as.integer(factor(blue.names)),blue.membs)
       }
     #run BRIM using intial assignments T0
-    bout <- BRIM(elist,edge.list=TRUE,T0=T0)
-    
+    bout <- BRIM(elist,edge.list=TRUE,T0=T0, weights=weights)
+
     return(bout)
 }
 
@@ -313,18 +313,18 @@ edge.to.graph <- function(edgelist,return.gcc=FALSE)
         stop("edgelist contains one or more nodes that appear in both red and blue columns.
         Check to make sure network is truly bipartite.")
     }
-    
+
     g <- graph.data.frame(edgelist,directed=FALSE)
     blue.indx <- V(g)$name %in% unique(edgelist$blue)
     V(g)$color <- "red"
     V(g)$color[blue.indx] <- "blue"
-    
+
     if(!return.gcc){ g.out <- g}
     if(return.gcc){ gcc <- max.component(g); g.out <- gcc }
     blue.names <- V(g.out)$name[V(g.out)$name %in% unique(edgelist$blue)]
     red.names <- V(g.out)$name[V(g.out)$name %in% unique(edgelist$red)]
     edges <- edgelist[edgelist$blue %in% blue.names,]
-    
+
     return(list(blues=blue.names,reds=red.names,G=g.out,edges=edges))
 }
 
