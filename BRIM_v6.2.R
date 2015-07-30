@@ -97,11 +97,12 @@ Qhist <- vector();
 Qnow  <- 0
 deltaQ <- 1
 #______________________________________
+iter=1
 while(round(deltaQ,digits=4) > 0){
   btr <- BTR <- bt <- BT <- vector();
 #calculate T tilde
 for(i in 1:p){
-  if(i %% 2500 == 0){print(paste(i/p,"percent through iteration"))}
+  if(i %% 2500 == 0){print(sprintf("%s%% through iteration %s",round(i/p*100,digits=1),iter))}
   #find the optimal community for node i
   bt <- rep(0,length(cs))
   for(k in cs){
@@ -179,7 +180,9 @@ print(paste("Q =",Qnow,sep=" "))
   if(round(Qnow,digits=4) != 0 && round(Qnow,digits=4) != 0){
   deltaQ = Qnow - Qthen
   }
+iter=iter+1
 }
+#__________end_while_____________
   qcom_temp <- cbind(Qcom,sort(unique(cs)))
   #drop empty communities
   qcom_out <- qcom_temp[qcom_temp[,1] > 0,]
